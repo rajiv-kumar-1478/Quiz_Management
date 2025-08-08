@@ -1684,4 +1684,5 @@ def chr_filter(value):
 # --- Main Execution ---
 if __name__ == '__main__':
     # Consider using waitress or gunicorn for production instead of app.run
-    app.run(debug=True , port=5100) # Enable debug mode for development (auto-reloads, shows errors)
+
+    app.run(debug=True) # Enable debug mode for development (auto-reloads, shows errors)
