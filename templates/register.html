@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    body {
+        background: linear-gradient(to right, #6dd5ed, #2193b0);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    nav.navbar {
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding-top: 0.7rem;
+        padding-bottom: 0.7rem;
+    }
+
+    .register-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 90vh;
+        padding: 30px;
+    }
+
+    .register-card {
+        background: #fff;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 500px;
+        animation: slideFadeIn 0.5s ease;
+    }
+
+    .register-card h2 {
+        text-align: center;
+        font-weight: 700;
+        margin-bottom: 30px;
+        font-size: 2rem;
+        color: #333;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #333;
+    }
+
+    .form-control, .form-select {
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border: none;
+        font-weight: 600;
+        padding: 12px;
+        font-size: 1.1rem;
+        border-radius: 12px;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    .login-redirect {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 1rem;
+        font-weight: 500;
+        color: #555;
+    }
+
+    .login-redirect a {
+        color: #007bff;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .login-redirect a:hover {
+        text-decoration: underline;
+    }
+
+    @keyframes slideFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<div class="register-wrapper">
+    <div class="register-card">
+        <h2><i class="bi bi-person-plus-fill me-2"></i>Register</h2>
+        <form method="POST" action="{{ url_for('register') }}">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" name="username" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                <input type="email" class="form-control" id="email" name="email" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="confirm_password" class="form-label">Confirm Password</label>
+                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+            </div>
+
+            <div class="mb-4">
+                <label for="role" class="form-label">Register as:</label>
+                <select class="form-select" id="role" name="role" required>
+                    <option selected disabled value="">Choose...</option>
+                    <option value="student">Student</option>
+                    <option value="professor">Professor</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Register</button>
+        </form>
+
+        <div class="login-redirect">
+            Already have an account?
+            <a href="{{ url_for('login') }}">Login here</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
