@@ -564,24 +564,28 @@ def check_quiz_update(quiz_id):
         return jsonify({'reload': False})
 
     question_changes = []
+    question_indexes = []  # <-- new
 
     if not session_obj.question_last_seen:
         session_obj.question_last_seen = {}
 
-    for q in quiz.questions:
+    for idx, q in enumerate(quiz.questions):  # Use enumerate to get index
         q_id = str(q.id)
         seen_time = session_obj.question_last_seen.get(q_id)
         if q.last_updated:
             if not seen_time or q.last_updated > datetime.fromisoformat(seen_time):
                 question_changes.append(q_id)
+                question_indexes.append(idx + 1)  # index starts at 0, so +1
 
     if question_changes:
         return jsonify({
             'reload': True,
-            'changed_questions': question_changes
+            'changed_questions': question_changes,
+            'changed_indexes': question_indexes  # <-- send question numbers
         })
 
     return jsonify({'reload': False})
+
 
 @app.route('/quiz/<int:quiz_id>/mark_seen', methods=["POST"])
 @student_required
@@ -876,6 +880,34 @@ def view_regrade_logs(quiz_id):
     return render_template('regrade_logs.html', logs=logs, quiz=quiz)
 
 
+@app.route('/professor/quiz/<int:quiz_id>/student/<int:student_id>/report')
+@professor_required
+def professor_view_student_report(quiz_id, student_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    result = Result.query.filter_by(student_id=student_id, quiz_id=quiz_id).first_or_404()
+    questions = Question.query.filter_by(quiz_id=quiz_id).all()
+    answers = StudentAnswer.query.filter_by(student_id=student_id, quiz_id=quiz_id).all()
+    answer_map = {a.question_id: a.selected_option for a in answers}
+
+    report = []
+    for q in questions:
+        report.append({
+            "text": q.text,
+            "image": q.image,
+            "options": [q.option_a, q.option_b, q.option_c, q.option_d],
+            "correct": q.correct_option.lower(),
+            "selected": answer_map.get(q.id, None)
+        })
+
+    return render_template(
+        'student_result_report.html',
+        quiz=quiz,
+        result=result,
+        report=report,
+        professor_view=True  # 👈 Set this flag
+
+    )
+
 
 @app.route('/professor/quiz/<int:quiz_id>/release_report', methods=['POST'])
 @professor_required
@@ -892,8 +924,9 @@ def release_quiz_report(quiz_id):
 def view_quiz_results(quiz_id):
     quiz = Quiz.query.get_or_404(quiz_id)
 
-    # Student result data
+    # Get results with username, score, total_questions, submitted_at
     results = db.session.query(
+        User.id.label("student_id"),
         User.username,
         Result.score,
         Result.total_questions,
@@ -902,13 +935,9 @@ def view_quiz_results(quiz_id):
 
     chart_data = []
     for r in results:
-        user = User.query.filter_by(username=r.username).first()
-        if not user:
-            continue
-
-        student_id = user.id
+        student_id = r.student_id
         score = r.score
-        total = r.total_questions 
+        total = r.total_questions
         max_possible = total * quiz.marks_correct
         percentage = (score * 100 / max_possible) if max_possible > 0 else 0
 
@@ -919,9 +948,16 @@ def view_quiz_results(quiz_id):
         answered_count = len(answers)
         unanswered = total - answered_count
 
-        grade = 'A' if percentage >= 90 else 'B' if percentage >= 75 else 'C' if percentage >= 60 else 'D' if percentage >= 40 else 'F'
+        grade = (
+            'A' if percentage >= 90 else
+            'B' if percentage >= 75 else
+            'C' if percentage >= 60 else
+            'D' if percentage >= 40 else
+            'F'
+        )
 
         chart_data.append({
+            "student_id": student_id,  # ✅ This is the missing key
             "username": r.username,
             "score": score,
             "correct": correct_count,
@@ -934,19 +970,15 @@ def view_quiz_results(quiz_id):
         })
 
     # Per-question stats
-        # Per-question stats (accurate)
-    submitted_students = db.session.query(Result.student_id).filter_by(quiz_id=quiz_id).subquery()
-
     question_stats = []
     questions = Question.query.filter_by(quiz_id=quiz_id).all()
+    total_students = db.session.query(Result).filter_by(quiz_id=quiz_id).count()
 
     for q in questions:
         answers = StudentAnswer.query.filter_by(quiz_id=quiz_id, question_id=q.id).all()
-
         correct = sum(1 for a in answers if a.is_correct is True)
         incorrect = sum(1 for a in answers if a.is_correct is False)
         answered_students = {a.student_id for a in answers}
-        total_students = db.session.query(Result).filter_by(quiz_id=quiz_id).count()
         unanswered = total_students - len(answered_students)
 
         question_stats.append({
@@ -957,7 +989,6 @@ def view_quiz_results(quiz_id):
             'unanswered': unanswered
         })
 
-
     return render_template(
         'view_quiz_results.html',
         quiz=quiz,
@@ -965,6 +996,7 @@ def view_quiz_results(quiz_id):
         chart_data=chart_data,
         question_stats=question_stats
     )
+
 
 
 
@@ -1196,9 +1228,14 @@ def take_quiz(quiz_id):
             'd': q.option_d
         } for q in questions
     }
-    # ✅ Track what version of the quiz the student is seeing
+
+    # ✅ Update seen timestamps to prevent reload loop
+    for q in questions:
+        quiz_session.question_last_seen[str(q.id)] = q.last_updated.isoformat() if q.last_updated else datetime.utcnow().isoformat()
+
     quiz_session.quiz_last_updated = quiz.last_updated
     db.session.commit()
+
     return render_template(
         "take_quiz.html",
         quiz=quiz,
@@ -1207,6 +1244,7 @@ def take_quiz(quiz_id):
         saved_answers=quiz_session.saved_answers,
         option_map=option_map
     )
+
 
 # @app.route('/student/quiz/<int:quiz_id>/take', methods=['GET', 'POST'])
 # @student_required
@@ -1684,5 +1722,4 @@ def chr_filter(value):
 # --- Main Execution ---
 if __name__ == '__main__':
     # Consider using waitress or gunicorn for production instead of app.run
-
-    app.run(debug=True) # Enable debug mode for development (auto-reloads, shows errors)
+    app.run(debug=True , port=5100) # Enable debug mode for development (auto-reloads, shows errors)
