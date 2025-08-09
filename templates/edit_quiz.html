@@ -31,14 +31,14 @@
 
 
         <!-- Toggle: Question Type -->
-        <div class="mb-3">
+        <!-- <div class="mb-3">
             <label class="form-label">Question Type</label>
             <select class="form-select" data-id="{{ question.id }}" onchange="handleToggle(this, '{{ question.id }}')">
                 <option value="both" selected>Text + Image</option>
                 <option value="text" {% if question.text and not question.image %}selected{% endif %}>Text Only</option>
                 <option value="image" {% if question.image and not question.text %}selected{% endif %}>Image Only</option>
             </select>
-        </div>
+        </div> -->
 
         <!-- Text Input -->
         <div class="mb-3" id="text_div_{{ question.id }}">
