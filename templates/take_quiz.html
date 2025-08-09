@@ -39,7 +39,7 @@
 
 <div class="row">
 
-  <div class="col-md-9">
+  <div class="col-12 col-lg-9 mb-3">
     <form method="POST" action="{{ url_for('take_quiz', quiz_id=quiz.id) }}" id="quizForm">
       {% for question in questions %}
       <div class="question-card card mb-4 {% if not loop.first %}d-none{% endif %}" data-index="{{ loop.index }}" id="questionCard_{{ loop.index }}">
@@ -49,7 +49,7 @@
             <i class="bi bi-x-circle"></i> Clear
           </button>
         </div>
-        <div class="card-body">
+        <div class="card-body px-2 px-sm-3">
           {% if question.text %}
             <p class="card-text">{{ question.text }}</p>
           {% endif %}
@@ -75,19 +75,20 @@
       </div>
       {% endfor %}
 
-      <div class="d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary" id="prevBtn">⬅ Prev</button>
-        <button type="button" class="btn btn-outline-secondary" id="nextBtn">Next ➡</button>
-      </div>
+    <div class="d-flex justify-content-between flex-wrap gap-2 mt-3">
+      <button type="button" class="btn btn-outline-secondary flex-fill" id="prevBtn">⬅ Prev</button>
+      <button type="button" class="btn btn-outline-secondary flex-fill" id="nextBtn">Next ➡</button>
+    </div>
 
       <div class="text-center mt-4">
         <button type="submit" class="btn btn-primary">Submit Quiz</button>
       </div>
     </form>
   </div>
-  <div class="col-md-3">
-    <h5 class="mb-3">🧭 Navigation</h5>
-    <div id="questionNav" class="d-grid gap-2">
+  <div class="col-12 col-lg-3 mb-3">
+
+    <h5 class="mb-3">Navigation</h5>
+    <div id="questionNav" class="d-grid gap-2 grid-cols-5 grid-cols-sm-10">
       {% for question in questions %}
       <button type="button" class="btn btn-outline-secondary nav-btn" data-index="{{ loop.index }}" id="navBtn_{{ question.id }}">
         Q{{ loop.index }}
@@ -98,8 +99,42 @@
 </div>
 
 <style>
+
+  #questionNav .btn {
+  padding: 6px;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  #questionNav {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+#timer {
+  font-size: 16px;
+}
+
+@media (max-width: 576px) {
+  #timer {
+    font-size: 14px;
+  }
+}
+
   .nav-btn.answered { background-color: #d1e7dd; border-color: #0f5132; color: #0f5132; }
   .nav-btn.current { border: 2px solid #0d6efd; }
+
+  @media (max-width: 576px) {
+  .form-check-label {
+    font-size: 15px;
+    padding-left: 8px;
+  }
+  .form-check-input {
+    transform: scale(1.2);
+    margin-top: 6px;
+  }
+}
+
 </style>
 
 {% endblock %}
@@ -192,24 +227,27 @@ document.querySelectorAll(".clear-btn").forEach(btn => {
 
 // Auto poll for professor edits
 let pollInterval = setInterval(() => {
-    fetch(`/quiz/{{ quiz.id }}/check_update`).then(res => res.json()).then(data => {
-        if (data.reload) {
-            clearInterval(pollInterval);
-            const changed = data.changed_questions?.join(', ') || 'some questions';
-            const msg = `⚠️ Questions ${changed} were updated by the professor.\n\nDo you want to reload now to see changes?`;
-            if (confirm(msg)) {
-                fetch("/quiz/{{ quiz.id }}/mark_seen", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": "{{ csrf_token() if csrf_token is defined else '' }}"
-                    },
-                    body: JSON.stringify({ questions_seen: data.changed_questions || [] })
-                }).then(() => location.reload());
+    fetch(`/quiz/{{ quiz.id }}/check_update`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.reload) {
+                clearInterval(pollInterval);
+                const changed = data.changed_indexes?.join(', ') || 'some questions';
+                const msg = `⚠️ Question(s) ${changed} were updated by the professor.\n\nDo you want to reload now to see changes?`;
+                if (confirm(msg)) {
+                    fetch("/quiz/{{ quiz.id }}/mark_seen", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": "{{ csrf_token() if csrf_token is defined else '' }}"
+                        },
+                        body: JSON.stringify({ questions_seen: data.changed_questions || [] })
+                    }).then(() => location.reload());
+                }
             }
-        }
-    }).catch(err => console.warn("Polling error:", err));
-}, 60000);
+        })
+        .catch(err => console.warn("Polling error:", err));
+}, 10000);
 
 // Prevent accidental leave
 function handleBeforeUnload(e) {
